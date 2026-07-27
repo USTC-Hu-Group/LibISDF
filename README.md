@@ -1,4 +1,4 @@
-bISDF
+LibISDF
 
 LibISDF is a distributed-memory library for interpolative separable
 density fitting (ISDF). It is designed primarily for integration with
