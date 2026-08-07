@@ -34,9 +34,9 @@ namespace isdffunc {
 
 
 #if defined(GPU)
-    void ISDF(double *d_psirow, Domain domain_, Int nocc, Int nstate, Int nv1, Int nc1, Int nv2,Int nc2, Int mu_rank, Real *d_psiphizetaCol, Int *pivQR_,Int KmeansMaxIter_ISDF,bool check=false);
+    void ISDF(double *d_psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2,int nc2, int mu_points, double *d_thetaCol, int *piv,int KmeansMaxIter_ISDF,bool check=false);
 #else
-    void ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv1, Int nc1, Int nv2,Int nc2, Int mu_rank, Real *thetaRow, Int *piv, Int KmeansMaxIter_ISDF,Int scalblocksize=64, std::string s = "scalapack", std::string s1 = "Kmeans",bool check=false);
+    void ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2,int nc2, int mu_points, double *thetaCol, int *piv, int KmeansMaxIter_ISDF,int scalblocksize=64, std::string s = "scalapack", std::string s1 = "Kmeans",bool check=false);
 #endif
 
 #if defined(GPU)

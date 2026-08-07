@@ -5,13 +5,13 @@
 namespace isdf{
 
 #if !defined(GPU) 
-void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv1, Int nc1, Int nv2, Int nc2, Int mu_rank, Real *thetaRow, Int *piv, Int KmeansMaxIter_ISDF, Int scalblocksize,std::string s , std::string s1,bool check)
+void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2, int nc2, int mu_points, double *thetaCol, int *piv, int KmeansMaxIter_ISDF, int scalblocksize,std::string s , std::string s1,bool check)
 {
   int mpirank, mpisize;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
-  MPI_Barrier(domain_.comm);
-  Int nr = domain_.NumGridTotal();
+  MPI_Barrier(domain.comm);
+  Int nr = domain.NumGridTotal();
   Int ntotLocal = nr / mpisize;
   Real timeStaisdf;
   Real timeEndisdf;
@@ -25,19 +25,19 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
    ntotLocal++;
   }
 
-  DblNumMat psiRow(ntotLocal, Nstate, false, psirow);
-  Int NstateLocal = Nstate / mpisize;
-  if (mpirank < (Nstate % mpisize))
+  DblNumMat psiRow(ntotLocal, nstate, false, psirow);
+  Int nstateLocal = nstate / mpisize;
+  if (mpirank < (nstate % mpisize))
   {
-    NstateLocal++;
+    nstateLocal++;
   }
 
   
   Int rk;
-  if(mu_rank == 0){
+  if(mu_points == 0){
   rk = IRound(std::sqrt((nc1 + nv1) * (nc2 + nv2)) * 8.0);
   }else{
-	  rk = mu_rank;
+	  rk = mu_points;
   }
   isdfOFS<<"rk="<< rk <<std::endl;
   IntNumVec pivQR_(nr, false, piv);
@@ -48,34 +48,34 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
     rkLocal++;
   }
 
-  DblNumMat psiphirzetaCol(nr, rkLocal, false, thetaRow);
+  DblNumMat psiphirzetaCol(nr, rkLocal, false, thetaCol);
   DblNumMat psiphirzetaRow(ntotLocal, rk);
   SetValue(psiphirzetaRow, 0.0);
   //printCpxM(psiRow, isdfOFS);
-  DblNumMat psiCol(nr, NstateLocal);
+  DblNumMat psiCol(nr, nstateLocal);
   GetTime(timeSta);
-  AlltoallBackward(psiRow, psiCol, domain_.comm);
+  AlltoallBackward(psiRow, psiCol, domain.comm);
   GetTime(timeEnd);
   timeISDFMPI+=timeEnd-timeSta;
   if (s == "MPI")
   {
     if (s1 == "Kmeans")
     {
-      getpoints_Kmeans_MPI(psiRow, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_, timeISDFMPI,KmeansMaxIter_ISDF);
+      getpoints_Kmeans_MPI(psiRow, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_, timeISDFMPI,KmeansMaxIter_ISDF);
     }
     else if(s1== "QRCP")
     {
       srand48(41);
-      getpoints_QRCP(psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_);
+      getpoints_QRCP(psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_);
     }
     else
   {
     ErrorHandling("Wrong select points method");
   }
    // printCpxV(pivQR_,psiOFS);
-    getbasis_MPI(psiRow,psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_, timeISDFMPI);
+    getbasis_MPI(psiRow,psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_, timeISDFMPI);
     GetTime(timeSta);
-    AlltoallBackward(psiphirzetaRow, psiphirzetaCol, domain_.comm);
+    AlltoallBackward(psiphirzetaRow, psiphirzetaCol, domain.comm);
     GetTime(timeEnd);
     timeISDFMPI+=timeEnd-timeSta;
     GetTime(timeEndisdf);
@@ -88,8 +88,8 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
     if (check)
     {
       isdf::Fourier fft;
-      fft.Initialize(domain_);
-      checkcode(psiRow, psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
+      fft.Initialize(domain);
+      checkcode(psiRow, psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
     }
   }
   else if (s == "scalapack")
@@ -97,12 +97,12 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
 
     if (s1 == "Kmeans")
     {
-      getpoints_Kmeans_MPI(psiRow, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_, timeISDFMPI,KmeansMaxIter_ISDF);
+      getpoints_Kmeans_MPI(psiRow, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_, timeISDFMPI,KmeansMaxIter_ISDF);
     }
     else if(s1== "QRCP")
     {
       srand48(41);
-      getpoints_QRCP(psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_);
+      getpoints_QRCP(psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, pivQR_);
     }
     else
   {
@@ -110,15 +110,15 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
   }
 
 
-    getbasis_scalapack(psiCol, domain_, Nstate, nocc, nv1, nc1, nv2, nc2, rk, psiphirzetaCol, pivQR_,scalblocksize, timeISDFMPI);
+    getbasis_scalapack(psiCol, domain, nstate, nocc, nv1, nc1, nv2, nc2, rk, psiphirzetaCol, pivQR_,scalblocksize, timeISDFMPI);
     GetTime(timeEndisdf);
     isdfOFS << "Time for ISDF ="<<timeEndisdf-timeStaisdf  << " [s]" <<std::endl;
     if (check)
     {
-    AlltoallForward(psiphirzetaCol, psiphirzetaRow, domain_.comm);
+    AlltoallForward(psiphirzetaCol, psiphirzetaRow, domain.comm);
     isdf::Fourier fft;
-    fft.Initialize(domain_);
-    isdffunc::checkcode(psiRow, psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
+    fft.Initialize(domain);
+    isdffunc::checkcode(psiRow, psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
     }
   }
 }
@@ -126,25 +126,25 @@ void isdffunc::ISDF(double *psirow, Domain domain_, Int nocc, Int Nstate, Int nv
 
 #else
 
-void isdffunc::ISDF(double *d_psirow, Domain domain_, Int nocc, Int Nstate, Int nv1, Int nc1, Int nv2, Int nc2, Int mu_rank, Real *d_thetaCol, Int *piv,Int KmeansMaxIter_ISDF,bool check)
+void isdffunc::ISDF(double *d_psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2, int nc2, int mu_points, double *d_thetaCol, int *piv, int KmeansMaxIter_ISDF,bool check)
 {
   int mpirank, mpisize;
   MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
   MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
-  MPI_Barrier(domain_.comm);
-  Int nr = domain_.NumGridTotal();
+  MPI_Barrier(domain.comm);
+  Int nr = domain.NumGridTotal();
   Int ntotLocal = nr / mpisize;
   if (mpirank < (nr % mpisize))
   {
     ntotLocal++;
   }
 
-  cuDblNumMat cu_psiRow(ntotLocal, Nstate, false, d_psirow);
+  cuDblNumMat cu_psiRow(ntotLocal, nstate, false, d_psirow);
 
-  Int NstateLocal = Nstate / mpisize;
-  if (mpirank < (Nstate % mpisize))
+  Int nstateLocal = nstate / mpisize;
+  if (mpirank < (nstate % mpisize))
   {
-    NstateLocal++;
+    nstateLocal++;
   }
 
   Real timeISDF = 0.0;
@@ -154,10 +154,10 @@ void isdffunc::ISDF(double *d_psirow, Domain domain_, Int nocc, Int Nstate, Int 
 //  Real timeISDFGEMM = 0.0;
   Real timeISDFMemcpy=0.0;
   Int rk;
-  if(mu_rank == 0){
+  if(mu_points == 0){
   rk = IRound(std::sqrt((nc1 + nv1) * (nc2 + nv2)) * 8.0);
   }else{
-          rk = mu_rank;
+          rk = mu_points;
   }
   isdfOFS<<"rk="<< rk <<std::endl;
   Int rkLocal = rk / mpisize;
@@ -175,12 +175,12 @@ void isdffunc::ISDF(double *d_psirow, Domain domain_, Int nocc, Int Nstate, Int 
   Real timeEndisdf;
   
   GetTime(timeStaisdf);
-  ISDF_GPU(cu_psiRow, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, cu_psiphirzetaRow, pivQR_,KmeansMaxIter_ISDF,timeISDFMemcpy,timeISDFMPI);
+  ISDF_GPU(cu_psiRow, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, cu_psiphirzetaRow, pivQR_,KmeansMaxIter_ISDF,timeISDFMemcpy,timeISDFMPI);
   GetTime(timeSta);
-  GPU_AlltoallBackward(cu_psiphirzetaRow,cu_psiphirzetaCol,domain_.comm); 
+  GPU_AlltoallBackward(cu_psiphirzetaRow,cu_psiphirzetaCol,domain.comm); 
   GetTime(timeEnd);
   timeISDFMPI+=timeEnd-timeSta;
-  MPI_Barrier(domain_.comm);
+  MPI_Barrier(domain.comm);
   GetTime(timeEndisdf);
    
   isdfOFS << "Time for ISDF time =" << timeEndisdf - timeStaisdf << " [s]" << std::endl;
@@ -194,12 +194,12 @@ void isdffunc::ISDF(double *d_psirow, Domain domain_, Int nocc, Int Nstate, Int 
     cuda_memcpy_GPU2CPU(psiphirzetaRow.Data(), cu_psiphirzetaRow.Data(), rk * ntotLocal * sizeof(double));
     GetTime(timeEnd1);
     isdf::Fourier fft;
-    fft.Initialize(domain_);
-    DblNumMat psiRow(ntotLocal, Nstate);
-    cuda_memcpy_GPU2CPU(psiRow.Data(), cu_psiRow.Data(), ntotLocal * Nstate * sizeof(double));
-    DblNumMat psiCol(nr, NstateLocal);
-    AlltoallBackward(psiRow, psiCol, domain_.comm);
-    isdffunc::checkcode(psiRow, psiCol, domain_, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
+    fft.Initialize(domain);
+    DblNumMat psiRow(ntotLocal, nstate);
+    cuda_memcpy_GPU2CPU(psiRow.Data(), cu_psiRow.Data(), ntotLocal * nstate * sizeof(double));
+    DblNumMat psiCol(nr, nstateLocal);
+    AlltoallBackward(psiRow, psiCol, domain.comm);
+    isdffunc::checkcode(psiRow, psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_,fft);
   }
 
  // isdfOFS.close();
