@@ -8,8 +8,8 @@ namespace isdf{
 void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2, int nc2, int mu_points, double *thetaCol, int *piv, int KmeansMaxIter_ISDF, int scalblocksize,std::string s , std::string s1,bool check)
 {
   int mpirank, mpisize;
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+  MPI_Comm_rank(domain.comm, &mpirank);
+  MPI_Comm_size(domain.comm, &mpisize);
   MPI_Barrier(domain.comm);
   Int nr = domain.NumGridTotal();
   Int ntotLocal = nr / mpisize;
@@ -18,7 +18,7 @@ void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1
   Real timeISDF = 0.0;
   Real timeISDFMPI = 0.0;
   Real timeSta,timeEnd;
-
+  MPI_Barrier(domain.comm);
   GetTime(timeStaisdf);
   if (mpirank < (nr % mpisize))
   {
@@ -74,10 +74,12 @@ void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1
   }
    // printCpxV(pivQR_,psiOFS);
     getbasis_MPI(psiRow,psiCol, domain, nocc, nv1, nc1, nv2, nc2, ntotLocal, rk, psiphirzetaRow, pivQR_, timeISDFMPI);
+    MPI_Barrier(domain.comm);
     GetTime(timeSta);
     AlltoallBackward(psiphirzetaRow, psiphirzetaCol, domain.comm);
     GetTime(timeEnd);
     timeISDFMPI+=timeEnd-timeSta;
+    MPI_Barrier(domain.comm);
     GetTime(timeEndisdf);
     timeISDF = timeEndisdf-timeStaisdf;
     //printCpxM(psiphirzetaCol,psiOFS);
@@ -85,6 +87,7 @@ void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1
     
     
     isdfOFS << "Time for ISDF ="<<timeEndisdf-timeStaisdf  << " [s]" <<std::endl;
+    isdfOFS << "Time for MPI ="<<timeISDFMPI  << " [s]" <<std::endl;
     if (check)
     {
       isdf::Fourier fft;
@@ -129,8 +132,8 @@ void isdffunc::ISDF(double *psirow, Domain domain, int nocc, int nstate, int nv1
 void isdffunc::ISDF(double *d_psirow, Domain domain, int nocc, int nstate, int nv1, int nc1, int nv2, int nc2, int mu_points, double *d_thetaCol, int *piv, int KmeansMaxIter_ISDF,bool check)
 {
   int mpirank, mpisize;
-  MPI_Comm_rank(MPI_COMM_WORLD, &mpirank);
-  MPI_Comm_size(MPI_COMM_WORLD, &mpisize);
+  MPI_Comm_rank(domain.comm, &mpirank);
+  MPI_Comm_size(domain.comm, &mpisize);
   MPI_Barrier(domain.comm);
   Int nr = domain.NumGridTotal();
   Int ntotLocal = nr / mpisize;

@@ -12,8 +12,9 @@ void isdffunc::getpoints_Kmeans_MPI(DblNumMat &psiRow, Domain &domain_, const In
   Real timeSta, timeStaMPI;
   Real timeEnd, timeEndMPI;
   Real timeMPI = 0.0;
-  GetTime(timeSta);
   MPI_Barrier(domain_.comm);
+  GetTime(timeSta);
+//  MPI_Barrier(domain_.comm);
   int mpirank;
   MPI_Comm_rank(domain_.comm, &mpirank);
   int mpisize;
@@ -70,12 +71,15 @@ void isdffunc::getpoints_Kmeans_MPI(DblNumMat &psiRow, Domain &domain_, const In
         }
       }
     }
+    isdfOFS<<"ntot_"<<ntot_<<" "<<weight.m()<<std::endl;
+    MPI_Barrier(domain_.comm);
     GetTime(timeStaMPI);
     MPI_Allgatherv(weightLocal.Data(), ntotLocal, MPI_DOUBLE, weight.Data(), weightSize.Data(), weightSizeDispls.Data(), MPI_DOUBLE, domain_.comm);
     GetTime(timeEndMPI);
     timeMPI = timeMPI + timeEndMPI - timeStaMPI;
     timeISDFMPI=timeISDFMPI+timeMPI;
     KMEAN(ntot_, weight, rk, KmeansTolerance, KmeansMaxIter_ISDF, Tolerance, domain_, pivQR_.Data());
+    MPI_Barrier(domain_.comm);
     GetTime(timeEnd);
     isdfOFS << "Time for pivQR_ with Kmeans      = " << timeEnd - timeSta << " [s]" << std::endl;
     isdfOFS << "Time for MPI in  Kmeans      = " << timeMPI << " [s]" << std::endl;

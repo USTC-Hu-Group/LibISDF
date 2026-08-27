@@ -1,61 +1,16 @@
-/*
-   Copyright (c) 2012 The Regents of the University of California,
-   through Lawrence Berkeley National Laboratory.  
-
-Authors: Lexing Ying and Lin Lin
-
-This file is part of DGDFT. All rights reserved.
-
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are met:
-
-(1) Redistributions of source code must retain the above copyright notice, this
-list of conditions and the following disclaimer.
-(2) Redistributions in binary form must reproduce the above copyright notice,
-this list of conditions and the following disclaimer in the documentation
-and/or other materials provided with the distribution.
-(3) Neither the name of the University of California, Lawrence Berkeley
-National Laboratory, U.S. Dept. of Energy nor the names of its contributors may
-be used to endorse or promote products derived from this software without
-specific prior written permission.
-
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND
-ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED
-WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE
-DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR
-ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES
-(INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON
-ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
-SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-You are under no obligation whatsoever to provide any bug fixes, patches, or
-upgrades to the features, functionality or performance of the source code
-("Enhancements") to anyone; however, if you choose to make your Enhancements
-available either publicly, or directly to Lawrence Berkeley National
-Laboratory, without imposing a separate written license agreement for such
-Enhancements, then you hereby grant the following license: a non-exclusive,
-royalty-free perpetual license to install, use, modify, prepare derivative
-works, incorporate into other computer software, distribute, and sublicense
-such enhancements or derivative works thereof, in binary and source code form.
- */
-/// @file nummat_impl.hpp
-/// @brief Implementation of numerical matrix.
-/// @date 2010-09-27
 #pragma once
 #include "nummat_decl.hpp"
 
 namespace  isdf{
 
 template <class F> inline NumMat<F>::NumMat(Int m, Int n): m_(m), n_(n), owndata_(true) {
-  if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+  if(m_>0 && n_>0) { data_ = new F[(size_t)m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
 }
 
 template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data): m_(m), n_(n), owndata_(owndata) {
   if(owndata_) {
-    if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-    if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = data[i]; }
+    if(m_>0 && n_>0) { data_ = new F[(size_t)m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+    if(m_>0 && n_>0) { for(size_t i=0; i<(size_t) m_*n_; i++) data_[i] = data[i]; }
   } else {
     data_ = data;
   }
@@ -63,8 +18,8 @@ template <class F> inline NumMat<F>::NumMat(Int m, Int n, bool owndata, F* data)
 
 template <class F> inline NumMat<F>::NumMat(const NumMat& C): m_(C.m_), n_(C.n_), owndata_(C.owndata_) {
   if(owndata_) {
-    if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-    if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
+    if(m_>0 && n_>0) { data_ = new F[(size_t)m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+    if(m_>0 && n_>0) { for(size_t i=0; i<(size_t)m_*n_; i++) data_[i] = C.data_[i]; }
   } else {
     data_ = C.data_;
   }
@@ -92,8 +47,8 @@ template <class F> inline NumMat<F>& NumMat<F>::operator=(const NumMat& C) {
   }
   m_ = C.m_; n_=C.n_; owndata_=C.owndata_;
   if(owndata_) {
-    if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
-    if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
+    if(m_>0 && n_>0) { data_ = new F[(size_t) m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+    if(m_>0 && n_>0) { for(size_t i=0; i<(size_t)m_*n_; i++) data_[i] = C.data_[i]; }
   } else {
     data_ = C.data_;
   }
@@ -107,7 +62,7 @@ template <class F> inline void NumMat<F>::Resize(Int m, Int n)  {
   if(m_!=m || n_!=n) {
     if(m_>0 && n_>0) { delete[] data_; data_ = NULL; }
     m_ = m; n_ = n;
-    if(m_>0 && n_>0) { data_ = new F[m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
+    if(m_>0 && n_>0) { data_ = new F[(size_t)m_*n_]; if( data_ == NULL ) ErrorHandling("Cannot allocate memory."); } else data_=NULL;
   }
 }
 
@@ -138,7 +93,7 @@ inline const F& NumMat<F>::operator()(Int i, Int j) const  {
     ErrorHandling( msg.str().c_str() ); 
   }
 #endif
-  return data_[i+j*m_];
+  return data_[i+(size_t)j*m_];
 }
 
 template <class F>
@@ -154,7 +109,7 @@ inline F& NumMat<F>::operator()(Int i, Int j)  {
     ErrorHandling( msg.str().c_str() ); 
   }
 #endif
-  return data_[i+j*m_];
+  return data_[i+(size_t)j*m_];
 }
 
 template <class F>
@@ -170,9 +125,9 @@ inline F* NumMat<F>::VecData(Int j)  const
     ErrorHandling( msg.str().c_str() ); 
   }
 #endif
-  return &(data_[j*m_]); 
+  return &(data_[(size_t)j*m_]); 
 }
-
+/*
 template <class F>
 void NumMat<F>::Rearrange(Int blockNum) {
     Int cols = n_;
@@ -356,6 +311,222 @@ void NumMat<F>::RevertRearrange(Int blockNum) {
         }
     }
 }
+*/
+
+template <class F>
+void NumMat<F>::Rearrange(Int blockNum) {
+    typedef std::ptrdiff_t Idx;
+
+    Int cols = n_;
+    Int rows = m_;
+    Int r = rows % blockNum;
+    Int blockSize = rows / blockNum;
+    Int subBlockTotal = blockNum * cols;
+    NumVec<F> buf(blockSize + 1);
+    Int subBlockNum2, tmp;
+    IntNumVec index2;
+
+    if (r == 0){
+        subBlockNum2 = blockNum * cols;
+        index2.Resize(subBlockNum2);
+        for (Int i = 0; i < subBlockNum2; i++){
+            index2(i) = i / blockNum + (i % blockNum) * cols;
+        }
+        for(Int i = 0; i < subBlockNum2; i++){
+            while(index2(i) != i){
+                Idx cur_ptr    = (Idx)(i / blockNum) * rows
+                               + (Idx)(i % blockNum) * blockSize;
+                Idx target_ptr = (Idx)(index2(i) / blockNum) * rows
+                               + (Idx)(index2(i) % blockNum) * blockSize;
+                memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * blockSize);
+                tmp = index2(index2(i));
+                index2(index2(i)) = index2(i);
+                index2(i) = tmp;
+            }
+        }
+        return;
+    }
+
+    subBlockNum2 = subBlockTotal - (rows % blockNum) * cols;
+    index2.Resize(subBlockNum2);
+    for (Int i = 0; i < subBlockNum2; i++){
+        index2(i) = i / (blockNum - r) + (i % (blockNum - r)) * cols;
+    }
+    for(Int i = 0; i < subBlockNum2; i++){
+        while(index2(i) != i){
+            Idx cur_ptr    = (Idx)(i / (blockNum - r)) * rows
+                           + (Idx)(i % (blockNum - r)) * blockSize
+                           + (Idx)(blockSize + 1) * r;
+            Idx target_ptr = (Idx)(index2(i) / (blockNum - r)) * rows
+                           + (Idx)(index2(i) % (blockNum - r)) * blockSize
+                           + (Idx)(blockSize + 1) * r;
+            memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * blockSize);
+            memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * blockSize);
+            memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * blockSize);
+            tmp = index2(index2(i));
+            index2(index2(i)) = index2(i);
+            index2(i) = tmp;
+        }
+    }
+    if (rows % blockNum == 0) {
+        return;
+    }
+
+    Int subBlockNum1 = (rows % blockNum) * cols;
+    IntNumVec index1(subBlockNum1);
+    for (Int i = 0; i < subBlockNum1; i++){
+        index1(i) = i / r + (i % r) * cols;
+    }
+    for(Int i = 0; i < subBlockNum1; i++){
+        while(index1(i) != i){
+            Idx cur_ptr    = (Idx)(i / r) * rows
+                           + (Idx)(i % r) * (blockSize + 1);
+            Idx target_ptr = (Idx)(index1(i) / r) * rows
+                           + (Idx)(index1(i) % r) * (blockSize + 1);
+            memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * (blockSize + 1));
+            memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * (blockSize + 1));
+            memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * (blockSize + 1));
+            tmp = index1(index1(i));
+            index1(index1(i)) = index1(i);
+            index1(i) = tmp;
+        }
+    }
+
+    Int largerBlockNum = 2;
+    IntNumVec largerBlockSize(largerBlockNum);
+    largerBlockSize(0) = (rows % blockNum) * (blockSize + 1);
+    largerBlockSize(1) = rows - (rows % blockNum) * (blockSize + 1);
+    Int bufSize = largerBlockSize(0) > largerBlockSize(1) ? largerBlockSize(0) : largerBlockSize(1);
+    buf.Resize(bufSize);
+
+    Idx ptr = 0;
+    for (Int index = 0; index < cols; index++) {
+        Int tmpCol = index % cols;
+        Int currentSubBlockEles = largerBlockSize(0);
+        Idx currentSubBlockPtr  = (Idx)tmpCol * (largerBlockSize(0) + largerBlockSize(1));
+        if(ptr == currentSubBlockPtr){
+            ptr += currentSubBlockEles;
+            continue;
+        }
+        memcpy((void*)buf.Data(), (void*)(data_ + currentSubBlockPtr), sizeof(F) * currentSubBlockEles);
+        for (Idx k = currentSubBlockPtr - 1; k >= ptr; k--) {
+            *(this->data_ + k + currentSubBlockEles) = *(this->data_ + k);
+        }
+        memcpy((void*)(this->data_ + ptr), buf.Data(), sizeof(F) * currentSubBlockEles);
+        ptr += currentSubBlockEles;
+    }
+}
+
+
+
+template <class F>
+void NumMat<F>::RevertRearrange(Int blockNum) {
+    typedef std::ptrdiff_t Idx;
+
+    Int cols = n_;
+    Int rows = m_;
+    Int r = rows % blockNum;
+    Int blockSize = rows / blockNum;
+    Int subBlockTotal = blockNum * cols;
+    NumVec<F> buf;
+    Int tmp;
+
+    if (r != 0){
+        Int largerBlockNum = 2;
+        IntNumVec largerBlockSize(largerBlockNum);
+        largerBlockSize(0) = (rows % blockNum) * (blockSize + 1);
+        largerBlockSize(1) = rows - (rows % blockNum) * (blockSize + 1);
+        Int bufSize = largerBlockSize(0) > largerBlockSize(1) ? largerBlockSize(0) : largerBlockSize(1);
+        buf.Resize(bufSize);
+
+        Idx ptr = (Idx)cols * (largerBlockSize(0) + largerBlockSize(1))
+                - largerBlockSize(1);
+        for(Int index = cols - 1; index > 0; index--){
+            Int tmpCol = index % cols;
+            Int currentSubBlockEles = largerBlockSize(0);
+            Idx currentSubBlockPtr  = (Idx)tmpCol * largerBlockSize(0);
+            memcpy((void*)buf.Data(), (void*)(data_ + currentSubBlockPtr), sizeof(F) * currentSubBlockEles);
+            for(Idx k = currentSubBlockPtr; k < ptr - currentSubBlockEles; k++){
+                *(this->data_ + k) = *(this->data_ + k + currentSubBlockEles);
+            }
+            memcpy((void*)(this->data_ + ptr - currentSubBlockEles), buf.Data(), sizeof(F) * currentSubBlockEles);
+            ptr -= (Idx)largerBlockSize(0) + largerBlockSize(1);
+        }
+
+        buf.Resize(blockSize + 1);
+        Int subBlockNum1 = (rows % blockNum) * cols;
+        IntNumVec index1(subBlockNum1);
+        for (Int i = 0; i < subBlockNum1; i++){
+            index1(i) = (i % cols) * r + i / cols;
+        }
+        for(Int i = 0; i < subBlockNum1; i++){
+            while(index1(i) != i){
+                Idx cur_ptr    = (Idx)(i / r) * rows
+                               + (Idx)(i % r) * (blockSize + 1);
+                Idx target_ptr = (Idx)(index1(i) / r) * rows
+                               + (Idx)(index1(i) % r) * (blockSize + 1);
+                memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * (blockSize + 1));
+                memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * (blockSize + 1));
+                memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * (blockSize + 1));
+                tmp = index1(index1(i));
+                index1(index1(i)) = index1(i);
+                index1(i) = tmp;
+            }
+        }
+
+        Int subBlockNum2 = subBlockTotal - (rows % blockNum) * cols
+                         ? subBlockTotal - (rows % blockNum) * cols
+                         : rows * blockNum;
+        IntNumVec index2(subBlockNum2);
+        for (Int i = 0; i < subBlockNum2; i++){
+            index2(i) = (i % cols) * (blockNum - r) + i / cols;
+        }
+        for(Int i = 0; i < subBlockNum2; i++){
+            while(index2(i) != i){
+                Idx cur_ptr    = (Idx)(i / (blockNum - r)) * rows
+                               + (Idx)(i % (blockNum - r)) * blockSize
+                               + (Idx)(blockSize + 1) * r;
+                Idx target_ptr = (Idx)(index2(i) / (blockNum - r)) * rows
+                               + (Idx)(index2(i) % (blockNum - r)) * blockSize
+                               + (Idx)(blockSize + 1) * r;
+                memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * blockSize);
+                tmp = index2(index2(i));
+                index2(index2(i)) = index2(i);
+                index2(i) = tmp;
+            }
+        }
+    } else {
+        Int subBlockNum2 = cols * blockNum;
+        IntNumVec index2(subBlockNum2);
+        buf.Resize(blockSize);
+        for (Int i = 0; i < subBlockNum2; i++){
+            index2(i) = (i % cols) * blockNum + i / cols;
+        }
+        for(Int i = 0; i < subBlockNum2; i++){
+            while(index2(i) != i){
+                Idx cur_ptr    = (Idx)(i / blockNum) * rows
+                               + (Idx)(i % blockNum) * blockSize
+                               + (Idx)(blockSize + 1) * r;
+                Idx target_ptr = (Idx)(index2(i) / blockNum) * rows
+                               + (Idx)(index2(i) % blockNum) * blockSize
+                               + (Idx)(blockSize + 1) * r;
+                memcpy((void *) buf.Data(), (void *)(data_ + cur_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + cur_ptr), (void *)(data_ + target_ptr), sizeof(F) * blockSize);
+                memcpy((void *)(data_ + target_ptr), (void *)buf.Data(), sizeof(F) * blockSize);
+                tmp = index2(index2(i));
+                index2(index2(i)) = index2(i);
+                index2(i) = tmp;
+            }
+        }
+    }
+}
+
+
+
 
 
 template <class F>
@@ -407,14 +578,14 @@ void NumMat<F>::ExchangeCols(IntNumVec& colMap) {
 template <class F> inline void SetValue(NumMat<F>& M, F val)
 {
   F *ptr = M.data_;
-  for (Int i=0; i < M.m()*M.n(); i++) *(ptr++) = val;
+  for (size_t i=0; i < (size_t)M.m()*M.n(); i++) *(ptr++) = val;
 }
 
 template <class F> inline Real Energy(const NumMat<F>& M)
 {
   Real sum = 0;
   F *ptr = M.data_;
-  for (Int i=0; i < M.m()*M.n(); i++) 
+  for (size_t i=0; i < (size_t) M.m()*M.n(); i++) 
     sum += std::abs(ptr[i]) * std::abs(ptr[i]);
   return sum;
 }
@@ -433,7 +604,7 @@ Transpose ( const NumMat<F>& A, NumMat<F>& B )
 
   for( Int i = 0; i < m; i++ ){
     for( Int j = 0; j < n; j++ ){
-      Bdata[ j + n*i ] = Adata[ i + j*m ];
+      Bdata[ j + (size_t)n*i ] = Adata[ i + (size_t)j*m ];
     }
   }
 
@@ -456,7 +627,7 @@ Symmetrize( NumMat<F>& A )
 
   F  half = (F) 0.5;
 
-  for( Int i = 0; i < A.m() * A.n(); i++ ){
+  for( size_t i = 0; i <(size_t) A.m() * A.n(); i++ ){
     *Adata = half * (*Adata + *Bdata);
     Adata++; Bdata++;
   }

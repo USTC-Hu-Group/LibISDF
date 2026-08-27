@@ -1,4 +1,3 @@
-/// @date 2010-09-27
 #pragma once
 #include  "environment.hpp"
 #include  "numvec_decl.hpp"

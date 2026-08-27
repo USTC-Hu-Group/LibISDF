@@ -43,7 +43,8 @@ template <class F> inline cuNumMat<F>& cuNumMat<F>::operator=(const cuNumMat& C)
   m_ = C.m_; n_=C.n_; owndata_=C.owndata_;
   if(owndata_) {
     if(m_>0 && n_>0) { data_ = (F*)cuda_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
-    if(m_>0 && n_>0) { for(Int i=0; i<m_*n_; i++) data_[i] = C.data_[i]; }
+    if(m_>0 && n_>0) { cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F)*m_*n_); }
+   // if(m_>0 && n_>0) { for(size_t i=0; i<(size_t)m_*n_; i++) data_[i] = C.data_[i]; }
   } else {
     data_ = C.data_;
   }
@@ -62,47 +63,47 @@ template <class F> inline void cuNumMat<F>::Resize(Int m, Int n)  {
 }
 
 template <class F> inline void cuNumMat<F>::CopyTo(cuNumMat<F> &C) {
-  if( C.m_*C.n_ < m_ * n_) 
+  if( (size_t)C.m_*C.n_ < (size_t) m_ * n_) 
   { 
     C.Resize(m_, n_);
   }
-  if(C.m_*C.n_ >= m_*n_) {
+  if((size_t)C.m_*C.n_ >= (size_t)m_*n_) {
     if(m_>0 && n_>0) { cuda_memcpy_GPU2GPU(C.data_, data_, sizeof(F)*m_*n_);}
   }
 }
 
 template <class F> inline void cuNumMat<F>::CopyTo(NumMat<F> &C) {
-  if( C.m_*C.n_ < m_ * n_) 
+  if( (size_t)C.m_*C.n_ < (size_t)m_ * n_) 
   { 
     C.Resize(m_, n_);
   }
-  if(C.m_*C.n_ >= m_*n_) {
+  if((size_t)C.m_*C.n_ >= (size_t)m_*n_) {
     if(m_>0 && n_>0) { cuda_memcpy_GPU2CPU(C.data_, data_, sizeof(F)*m_*n_);}
   }
 }
 
 template <class F> inline void cuNumMat<F>::CopyFrom(const cuNumMat<F> &C) {
-  if( C.m_*C.n_ > m_ * n_) 
+  if( (size_t)C.m_*C.n_ > (size_t)m_ * n_) 
   { 
     std:: cout << " GPU memory not big enough. " << m_*n_ <<" "<< C.m_ * C.n_ << std:: endl;
     cuda_free(data_);
     m_ = C.m_; n_=C.n_; 
     if(m_>0 && n_>0) { data_ = (F*)cuda_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
    }
-  if(C.m_*C.n_ <= m_*n_) {
+  if((size_t)C.m_*C.n_ <= (size_t)m_*n_) {
     if(m_>0 && n_>0) { cuda_memcpy_GPU2GPU(data_, C.data_, sizeof(F)*C.m_*C.n_);}
   }
 }
 
 template <class F> inline void cuNumMat<F>::CopyFrom(const NumMat<F> &C) {
-  if( C.m_*C.n_ > m_ * n_) 
+  if( (size_t)C.m_*C.n_ > (size_t)m_ * n_) 
   { 
     std:: cout << " GPU memory not big enough. " << m_*n_ <<" "<< C.m_ * C.n_ << std:: endl;
     cuda_free(data_);
     m_ = C.m_; n_=C.n_; 
     if(m_>0 && n_>0) { data_ = (F*)cuda_malloc( sizeof(F) * m_ * n_ ); } else data_=NULL;
    }
-  if(C.m_*C.n_ <= m_*n_) {
+  if((size_t)C.m_*C.n_ <= (size_t)m_*n_) {
     if(m_>0 && n_>0) { cuda_memcpy_CPU2GPU(data_, C.data_, sizeof(F)*C.m_*C.n_);}
   }
 }
@@ -120,7 +121,7 @@ inline const F& cuNumMat<F>::operator()(Int i, Int j) const  {
       << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
-  return data_[i+j*m_];
+  return data_[i+(size_t)j*m_];
 }
 template <class F>
 inline F& cuNumMat<F>::operator()(Int i, Int j)  { 
@@ -133,7 +134,7 @@ inline F& cuNumMat<F>::operator()(Int i, Int j)  {
       << "This index     ~ (" << i  << ", " << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
-  return data_[i+j*m_];
+  return data_[i+(size_t)j*m_];
 }
 template <class F> inline void
 cuNumMat<F>::FreeData() {
@@ -157,7 +158,7 @@ inline F* cuNumMat<F>::VecData(Int j)  const
       << "This index     ~ (" << j  << ")" << std::endl;
     ErrorHandling( msg.str().c_str() ); 
   }
-  return &(data_[j*m_]); 
+  return &(data_[(size_t)j*m_]); 
 }
 
 template <typename F>
@@ -166,7 +167,7 @@ void printCpxM(F &Mat, std::ostream &out)
   Int r1 = Mat.m();
   Int r2 = Mat.n();
   DblNumMat Mat_CPU(r1, r2);
-  cuda_memcpy_GPU2CPU(Mat_CPU.Data(), Mat.Data(), r1 * r2 * sizeof(Mat(0,0)));
+  cuda_memcpy_GPU2CPU(Mat_CPU.Data(), Mat.Data(),sizeof(Mat(0,0)) * r1 * r2);
   out << r1 << std::endl;
   out << r2 << std::endl;
   out<<"GPU"<<std::endl; 

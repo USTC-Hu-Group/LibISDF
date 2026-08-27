@@ -84,6 +84,9 @@ void isdffunc::ISDF_GPU(cuDblNumMat &cu_psiRow, Domain &domain_,
         }
       }
     }
+//    isdfOFS<<"ntot_"<<Ng<<" "<<weight.m()<<std::endl;
+    cudaDeviceSynchronize();
+    MPI_Barrier(domain_.comm); 
     GetTime(timeStaMPI);
     MPI_Allgatherv(weightLocal.Data(), ntotLocal, MPI_DOUBLE,
                    weight.Data(), weightSize.Data(), weightSizeDispls.Data(),
@@ -132,86 +135,6 @@ void isdffunc::ISDF_GPU(cuDblNumMat &cu_psiRow, Domain &domain_,
     if (mpirank < (rk % mpisize)) rkLocal++;
 
 
-#ifdef GPUDIRECT
-
-
-IntNumVec pivQR_host(rk);
-
-
-
-for (int j = 0; j < rk; j++) pivQR_host[j] = pivQR_[j];
-cuIntNumVec cu_pivQR(rk);
-//int* d_pivQR = (int*)cuda_malloc(sizeof(int) * rk);
-
-GetTime(timeStaCopy);
-cuda_memcpy_CPU2GPU(cu_pivQR.Data(), pivQR_host.Data(), sizeof(int) * rk);
-GetTime(timeEndCopy);
-timeCopy += timeEndCopy - timeStaCopy;
-
-
-
-cuDblNumMat cu_psiCol(Ng, nstateLocal);
-Int psiCol_n = cu_psiCol.n();
-GetTime(timeStaMPI);
-GPU_AlltoallBackward(cu_psiRow, cu_psiCol, domain_.comm);
-GetTime(timeEndMPI);
-timeMPI += timeEndMPI - timeStaMPI;
-
-cuDblNumMat cu_psiMuLocalCol(rk, psiCol_n);
-//GetTime(timeStaCopy);
-cuda_gather_rows(cu_psiCol.Data(), cu_pivQR.Data(),
-                 rk, psiCol_n, Ng,
-                 cu_psiMuLocalCol.Data());
-
-//cudaDeviceSynchronize();   
-//GetTime(timeEndCopy);
-//timeCopy += timeEndCopy - timeStaCopy;
-cu_psiCol.FreeData();
-
-cuDblNumMat cu_psiMuLocalRow(rkLocal, psiRow_n);
-GetTime(timeStaMPI);
-GPU_AlltoallForward(cu_psiMuLocalCol, cu_psiMuLocalRow, domain_.comm);
-GetTime(timeEndMPI);
-timeMPI += timeEndMPI - timeStaMPI;
-
-
-cu_psiMuLocalCol.FreeData();
-cuDblNumMat cu_psiMuLocalRowT(psiRow_n, rkLocal);
-{
-    double one = 1.0, zero = 0.0;
-    cublasDgeam(hcublas,
-                CUBLAS_OP_T, CUBLAS_OP_N,
-                psiRow_n, rkLocal,
-                &one,  cu_psiMuLocalRow.Data(),  rkLocal,
-                &zero, cu_psiMuLocalRowT.Data(), psiRow_n,
-                cu_psiMuLocalRowT.Data(),        psiRow_n);
-}
-cu_psiMuLocalRow.FreeData();
-IntNumVec widthLocals(mpisize);
-GetTime(timeStaMPI);
-MPI_Allgather(&rkLocal, 1, MPI_INT, widthLocals.Data(), 1, MPI_INT,
-              domain_.comm);
-GetTime(timeEndMPI);
-timeMPI += timeEndMPI - timeStaMPI;
-IntNumVec sendcountsum(mpisize), displspsi(mpisize);
-SetValue(sendcountsum, 0);
-SetValue(displspsi, 0);
-for (int i = 0; i < mpisize; i++)
-  sendcountsum[i] = widthLocals[i] * psiRow_n;
-for (int i = 1; i < mpisize; i++)
-  displspsi[i] = displspsi[i - 1] + widthLocals[i - 1] * psiRow_n;
-cuDblNumMat cu_psiMuRow(psiRow_n, rk);
-GetTime(timeStaMPI);
-MPI_Allgatherv(cu_psiMuLocalRowT.Data(), rkLocal * psiRow_n, MPI_DOUBLE,
-               cu_psiMuRow.Data(),       sendcountsum.Data(),
-               displspsi.Data(),         MPI_DOUBLE, domain_.comm);
-GetTime(timeEndMPI);
-timeMPI += timeEndMPI - timeStaMPI;
-cu_psiMuLocalRowT.FreeData();
-cu_pivQR.FreeData();
-
-
-#else
 
     DblNumMat psiRow(psiRow_m, psiRow_n);
     GetTime(timeStaCopy);
@@ -288,7 +211,6 @@ cu_pivQR.FreeData();
     timeCopy += timeEndCopy - timeStaCopy;
 
     psiMuRow.FreeData();   
-#endif
 
    
     cuDblNumMat cu_PpsimuLocal(ntotLocal, rk);
@@ -353,73 +275,6 @@ cu_pivQR.FreeData();
     cu_PpsimuLocal.FreeData(); 
 
 
-#ifdef GPUDIRECT
-
-GetTime(timeSta);
-std::vector<Int> ownedNu;
-std::vector<Int> ownedLocalIdx;
-ownedNu.reserve(rk);
-ownedLocalIdx.reserve(rk);
-for (Int nu = 0; nu < rk; nu++) {
-    Int globalIdx = pivQR_(nu);
-    bool owned;
-    if (mpirank < mpisize - 1) {
-        owned = (globalIdx >= ntotresTotal(mpirank)) &&
-                (globalIdx <  ntotresTotal(mpirank + 1));
-    } else {
-        owned = (globalIdx >= ntotresTotal(mpirank)) &&
-                (globalIdx <  Ng);
-    }
-    if (owned) {
-        ownedNu.push_back(nu);
-        ownedLocalIdx.push_back(globalIdx - ntotresTotal(mpirank));
-    }
-}
-
-Int selectedRow = (Int)ownedNu.size();
-cu_PMuNu.Resize(rk, rk);
-cudaMemset(cu_PMuNu.Data(), 0, rk * rk * sizeof(double));
-if (selectedRow > 0) {
-    cuIntNumVec cu_localRowIdx(selectedRow);
-    cuIntNumVec cu_ownedNu(selectedRow);
-    GetTime(timeStaCopy);
-    cuda_memcpy_CPU2GPU(cu_localRowIdx.Data(), ownedLocalIdx.data(),
-                        selectedRow * sizeof(int));
-    cuda_memcpy_CPU2GPU(cu_ownedNu.Data(), ownedNu.data(),
-                        selectedRow * sizeof(int));
-    GetTime(timeEndCopy);
-    timeCopy += timeEndCopy - timeStaCopy;
-
-    cuDblNumMat cu_PMuNu_Local(rk, selectedRow);
-    getpsiMuT(cu_PphimuLocal.Data(), cu_localRowIdx.Data(),
-              cu_PMuNu_Local.Data(), selectedRow, ntotLocal, rk, 0);
-    cuda_scatter_cols(cu_PMuNu_Local.Data(), cu_ownedNu.Data(),
-                      rk, selectedRow, cu_PMuNu.Data());
-}
-cudaDeviceSynchronize(); 
-GetTime(timeStaMPI);
-MPI_Allreduce(MPI_IN_PLACE, cu_PMuNu.Data(), rk * rk,
-              MPI_DOUBLE, MPI_SUM, domain_.comm);
-GetTime(timeEndMPI);
-timeMPI += timeEndMPI - timeStaMPI;
-GetTime(timeEnd);
-isdfOFS << "Time for C*C^T                   = " << timeEnd - timeSta << " [s]" << std::endl;
-cuDblNumVec cu_diag(rk);
-cublasDcopy(hcublas, rk,
-            cu_PMuNu.Data(), rk + 1,
-            cu_diag.Data(), 1);
-cudaDeviceSynchronize();
-
-DblNumVec diag(rk);
-cuda_memcpy_GPU2CPU(diag.Data(), cu_diag.Data(), rk * sizeof(double));
-cu_diag.FreeData();
-
-double traceP = 0.0;
-for (int i = 0; i < rk; i++) traceP += diag[i];
-double eps = 1e-10 * (traceP / double(rk));
-cuda_add_diag(cu_PMuNu.Data(), rk, eps);
-//cudaDeviceSynchronize();
-#else 
     //printCpxM(cu_PphimuLocal,psiOFS);
     GetTime(timeSta);
 
@@ -502,7 +357,6 @@ cuda_add_diag(cu_PMuNu.Data(), rk, eps);
     GetTime(timeEndCopy);
     timeCopy += timeEndCopy - timeStaCopy;
     PMuNu.FreeData();
-#endif
 
  
     //printCpxM(cu_PMuNu,psiOFS);
@@ -534,12 +388,12 @@ cuda_add_diag(cu_PMuNu.Data(), rk, eps);
     GetTime(timeEndbasis);
     GetTime(timeEndisdf);
     timeISDFMemcpy=timeISDFMemcpy+timeCopy;
-    timeISDFMPI = timeISDFMPI + timeMPI;
+    timeISDFMPI = timeISDFMPI + timeMPI+timeMPIKmeans;
     isdfOFS << "Time for Trsm                    = " << timeEnd - timeSta << " [s]" << std::endl;
     isdfOFS << "Time for getbasis                = " << timeEndbasis - timeStabasis << " [s]" << std::endl;
     isdfOFS << "ISDF Time for GEMM in get basis  = " << timeGemm << " [s]" << std::endl;
-  //  isdfOFS << "ISDF Time for MPI in  get basis  = " << timeMPI  << " [s]" << std::endl;
-    isdfOFS << "ISDF Time for CPU-GPU            = " << timeCopy << " [s]" << std::endl;
+    isdfOFS << "ISDF Time for MPI in  get basis  = " << timeMPI  << " [s]" << std::endl;
+ //   isdfOFS << "ISDF Time for CPU-GPU            = " << timeCopy << " [s]" << std::endl;
 //    isdfOFS << "Time for ISDF                    = " << timeEndisdf - timeStaisdf << " [s]" << std::endl;
 //    isdfOFS << "ISDF Time for MPI in  ISDF       = " << timeMPI + timeMPIKmeans << " [s]" << std::endl;
 

@@ -14,8 +14,9 @@ namespace isdf
     Real timeEnd, timeEndisdf, timeEndMPI, timeEndGemm, timeEnd1;
     Real timeGemm = 0.0;
     Real timeMPI = 0.0;
-    GetTime(timeStaisdf);
     MPI_Barrier(domain_.comm);
+    GetTime(timeStaisdf);
+//    MPI_Barrier(domain_.comm);
     int mpirank;
     MPI_Comm_rank(domain_.comm, &mpirank);
     int mpisize;
@@ -68,6 +69,7 @@ namespace isdf
     }
     DblNumMat psiMuLocalRow(rkLocal, psiRow.n());
     SetValue(psiMuLocalRow, 0.0);
+    MPI_Barrier(domain_.comm);
     GetTime(timeStaMPI);
     AlltoallForward(psiMuLocalCol, psiMuLocalRow, domain_.comm);
     GetTime(timeEndMPI);
@@ -84,6 +86,7 @@ namespace isdf
     }
 
     IntNumVec widthLocals(mpisize);
+    MPI_Barrier(domain_.comm);
     GetTime(timeStaMPI);
     MPI_Allgather(&rkLocal, 1, MPI_INT, widthLocals.Data(), 1, MPI_INT, domain_.comm);
     GetTime(timeEndMPI);
@@ -106,6 +109,7 @@ namespace isdf
     {
       displspsi[i] = displspsi[i - 1] + widthLocals[i - 1] * psiRow.n();
     }
+    MPI_Barrier(domain_.comm);
     GetTime(timeStaMPI);
     MPI_Allgatherv(psiMuLocalRowT.Data(), rkLocal * psiRow.n(), MPI_DOUBLE, psiMuRow.Data(), sendcountsum.Data(), displspsi.Data(), MPI_DOUBLE, domain_.comm);
     GetTime(timeEndMPI);
@@ -121,7 +125,7 @@ namespace isdf
 
     if (nv1 != nv2 || nc1 != nc2)
     {
-
+      MPI_Barrier(domain_.comm);
       GetTime(timeStaGemm);
       blas::Gemm('N', 'N', ntotLocal, rk, nv1 + nc1, 1.0, psiRow.Data() + (nv_ - nv1) * ntotLocal, ntotLocal, psiMuRow.Data() + (nv_ - nv1), psiRow.n(), 0.0, PpsimuLocal.Data(), ntotLocal);
       GetTime(timeEndGemm);
@@ -129,12 +133,13 @@ namespace isdf
       isdfOFS << "rk=" << rk << std::endl;
       DblNumMat PphimuLocal(ntotLocal, rk);
       SetValue(PphimuLocal, 0.0);
+      MPI_Barrier(domain_.comm);
       GetTime(timeStaGemm);
       blas::Gemm('N', 'N', ntotLocal, rk, nv2 + nc2, 1.0, psiRow.Data() + (nv_ - nv2) * ntotLocal, ntotLocal, psiMuRow.Data() + (nv_ - nv2), psiRow.n(), 0.0, PphimuLocal.Data(), ntotLocal);
       GetTime(timeEndGemm);
       timeGemm = timeGemm + timeEndGemm - timeStaGemm;
       GetTime(timeEnd);
-      isdfOFS << "Time for Pphimu and Pphimu       = " << timeEnd - timeSta << " [s]" << std::endl;
+      isdfOFS << "Time for Ppsimu and Pphimu       = " << timeEnd - timeSta << " [s]" << std::endl;
 
       GetTime(timeSta);
 
@@ -155,12 +160,13 @@ namespace isdf
     {
 //      GetTime(timeEnd);
 //      isdfOFS << "Time for phiMu and psiMu         = " << timeEnd - timeSta << " [s]" << std::endl;
+      MPI_Barrier(domain_.comm);
       GetTime(timeStaGemm);
       blas::Gemm('N', 'N', ntotLocal, rk, nv1 + nc1, 1.0, psiRow.Data() + (nv_ - nv1) * ntotLocal, ntotLocal, psiMuRow.Data() + (nv_ - nv1), psiRow.n(), 0.0, PpsimuLocal.Data(), ntotLocal);
       GetTime(timeEndGemm);
       timeGemm = timeGemm + timeEndGemm - timeStaGemm;
       GetTime(timeEnd);
-      isdfOFS << "Time for Pphimu and Pphimu       = " << timeEnd - timeSta << " [s]" << std::endl;
+      isdfOFS << "Time for Ppsimu and Pphimu       = " << timeEnd - timeSta << " [s]" << std::endl;
 
       GetTime(timeSta);
 
@@ -206,7 +212,7 @@ namespace isdf
         }
       }
     }
-
+    MPI_Barrier(domain_.comm);
     GetTime(timeStaMPI);
     MPI_Allreduce(MPI_IN_PLACE, PMuNu.Data(), rk * rk, MPI_DOUBLE, MPI_SUM, domain_.comm);
     GetTime(timeEndMPI);
@@ -223,17 +229,18 @@ namespace isdf
     {
       PMuNu(i, i) += eps;
     }
-
+    MPI_Barrier(domain_.comm);
     GetTime(timeSta);
     lapack::Potrf('L', rk, PMuNu.Data(), rk);
     GetTime(timeEnd);
     isdfOFS << "Time for Potrf                   = " << timeEnd - timeSta << " [s]" << std::endl;
-
+    MPI_Barrier(domain_.comm);
     GetTime(timeSta);
     blas::Trsm('R', 'L', 'T', 'N', ntotLocal, rk, 1.0, PMuNu.Data(), rk, psiphizetaRow.Data(), ntotLocal);
     blas::Trsm('R', 'L', 'N', 'N', ntotLocal, rk, 1.0, PMuNu.Data(), rk, psiphizetaRow.Data(), ntotLocal);
     GetTime(timeEnd);
     isdfOFS << "Time for Trsm                    = " << timeEnd - timeSta << " [s]" << std::endl;
+    MPI_Barrier(domain_.comm);
     GetTime(timeEndisdf);
     isdfOFS << "Time for getbais       = " << timeEndisdf - timeStaisdf << " [s]" << std::endl;
     isdfOFS << "ISDF Time for GEMM in  get basis       = " << timeGemm << " [s]" << std::endl;

@@ -679,8 +679,8 @@ void KMEAN(Int n, NumVec<Real>& weight, Int& rk, Real KmeansTolerance,
     std::random_shuffle(piv+npt,piv+n);
     return;
   } 
-  int nptLocal = n/mpisize;
-  int res = n%mpisize;
+  int nptLocal = n/mpisize; // n
+  int res = n%mpisize;//n
   if (mpirank < res){
     nptLocal++;
   }

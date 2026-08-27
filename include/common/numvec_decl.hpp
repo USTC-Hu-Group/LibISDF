@@ -1,6 +1,3 @@
-/// @file numvec_decl.hpp
-/// @brief  Numerical vector.
-/// @date 2010-09-27
 #pragma once
 #include "environment.hpp"
 namespace  isdf{

@@ -1,6 +1,3 @@
-/// @file utility.hpp
-/// @brief Utility subroutines.
-/// @date 2012-08-12
 #pragma once
 #include  <stdlib.h>
 #include  "domain.hpp"

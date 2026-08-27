@@ -1,6 +1,3 @@
-/// @file environment.hpp
-/// @brief Environment variables for DGDFT.
-/// @date 2013-09-06
 #pragma once
 // STL libraries
 #include <iostream> 
